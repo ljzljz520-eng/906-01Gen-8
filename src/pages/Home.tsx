@@ -18,17 +18,17 @@ import { SensitivityLevel, VerificationStatus, UserRole } from '@/types';
 import { SENSITIVITY_META } from '@/utils/sensitivity';
 
 export default function Home() {
-  const { initStore, getFilteredVulns, vulnerabilities, currentUser, canSubmit } =
+  const { initStore, getFilteredVulns, getVisibleVulns, currentUser, canSubmit } =
     useAppStore();
+  const vulnerabilities = useAppStore((state) => state.vulnerabilities);
   const filtered = getFilteredVulns();
+  const visible = getVisibleVulns();
 
   useEffect(() => {
     initStore();
   }, [initStore]);
 
   const stats = useMemo(() => {
-    const authorizedScope = currentUser?.authorizedScope ?? [SensitivityLevel.PUBLIC];
-    const visible = vulnerabilities.filter((v) => authorizedScope.includes(v.sensitivityLevel));
     const counts = {
       total: visible.length,
       verified: visible.filter((v) => v.verificationStatus === VerificationStatus.VERIFIED).length,
@@ -40,7 +40,20 @@ export default function Home() {
       topSecret: visible.filter((v) => v.sensitivityLevel === SensitivityLevel.TOP_SECRET).length,
     };
     return counts;
-  }, [vulnerabilities, currentUser]);
+  }, [visible]);
+
+  const levelCounts = useMemo(() => {
+    const counts: Record<SensitivityLevel, number> = {
+      [SensitivityLevel.PUBLIC]: 0,
+      [SensitivityLevel.INTERNAL]: 0,
+      [SensitivityLevel.CONFIDENTIAL]: 0,
+      [SensitivityLevel.TOP_SECRET]: 0,
+    };
+    visible.forEach((v) => {
+      counts[v.sensitivityLevel]++;
+    });
+    return counts;
+  }, [visible]);
 
   return (
     <div className="min-h-screen pb-20">
@@ -84,19 +97,19 @@ export default function Home() {
               <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2 text-xs text-gray-500">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-sens-public" />
-                  公开级条目 {vulnerabilities.filter(v => v.sensitivityLevel === SensitivityLevel.PUBLIC).length}
+                  公开级条目 {levelCounts[SensitivityLevel.PUBLIC]}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-sens-internal" />
-                  内部级 {vulnerabilities.filter(v => v.sensitivityLevel === SensitivityLevel.INTERNAL).length}
+                  内部级 {levelCounts[SensitivityLevel.INTERNAL]}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-sens-confidential" />
-                  机密级 {vulnerabilities.filter(v => v.sensitivityLevel === SensitivityLevel.CONFIDENTIAL).length}
+                  机密级 {levelCounts[SensitivityLevel.CONFIDENTIAL]}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-sens-topsecret" />
-                  绝密级 {vulnerabilities.filter(v => v.sensitivityLevel === SensitivityLevel.TOP_SECRET).length}
+                  绝密级 {levelCounts[SensitivityLevel.TOP_SECRET]}
                 </div>
               </div>
             </div>

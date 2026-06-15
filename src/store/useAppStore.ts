@@ -34,6 +34,8 @@ interface AppState {
   submitDesensitized: (vulnId: string, desensitizedCode: string) => void;
 
   getFilteredVulns: () => Vulnerability[];
+  getVisibleVulns: () => Vulnerability[];
+  getVulnById: (id: string) => Vulnerability | undefined;
   canViewSensitiveLevel: (level: SensitivityLevel) => boolean;
   canAccessReview: () => boolean;
   canSubmit: () => boolean;
@@ -234,13 +236,42 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ vulnerabilities: newVulns });
   },
 
-  getFilteredVulns: () => {
-    const { vulnerabilities, filters, currentUser } = get();
+  getVisibleVulns: () => {
+    const { vulnerabilities, currentUser } = get();
     const authorizedScope =
       currentUser?.authorizedScope ?? [SensitivityLevel.PUBLIC];
+    const isAdmin = currentUser?.role === UserRole.ADMIN;
+    const uid = currentUser?.id;
 
     return vulnerabilities.filter((v) => {
-      if (!authorizedScope.includes(v.sensitivityLevel)) return false;
+      const isOwner = uid && v.submitterId === uid;
+      if (!isAdmin && !isOwner && !authorizedScope.includes(v.sensitivityLevel)) return false;
+      if (v.verificationStatus === VerificationStatus.REJECTED) {
+        if (isAdmin) return true;
+        if (isOwner) return true;
+        return false;
+      }
+      if (
+        v.verificationStatus === VerificationStatus.PENDING ||
+        v.verificationStatus === VerificationStatus.DESENSITIZATION
+      ) {
+        if (isAdmin) return true;
+        if (isOwner) return true;
+        return false;
+      }
+      return true;
+    });
+  },
+
+  getVulnById: (id) => {
+    return get().getVisibleVulns().find((v) => v.id === id);
+  },
+
+  getFilteredVulns: () => {
+    const { filters, getVisibleVulns } = get();
+    const visibleVulns = getVisibleVulns();
+
+    return visibleVulns.filter((v) => {
       if (
         filters.keyword &&
         !(

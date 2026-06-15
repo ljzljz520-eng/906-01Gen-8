@@ -25,13 +25,15 @@ import { SENSITIVITY_META } from '@/utils/sensitivity';
 export default function VulnDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { vulnerabilities, currentUser, submitDesensitized, canAccessReview, reviewVulnerability } =
+  const vulnerabilities = useAppStore((state) => state.vulnerabilities);
+  const currentUser = useAppStore((state) => state.currentUser);
+  const { submitDesensitized, canAccessReview, reviewVulnerability, getVulnById } =
     useAppStore();
   const [desensitizeOpen, setDesensitizeOpen] = useState(false);
   const [desensitizedCode, setDesensitizedCode] = useState('');
   const [viewMode, setViewMode] = useState<'original' | 'desensitized'>('desensitized');
 
-  const vuln = vulnerabilities.find((v) => v.id === id);
+  const vuln = getVulnById(id ?? '');
 
   if (!vuln) {
     return (
